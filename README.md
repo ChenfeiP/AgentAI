@@ -1,70 +1,114 @@
-# Getting Started with Create React App
+# Agent AI
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack AI chat app that answers questions in two ways: **RAG over uploaded PDFs** and **live web search via MCP**. The frontend also supports voice input and text-to-speech in Chat Mode.
 
-## Available Scripts
+## Live Demo
 
-In the project directory, you can run:
+Deployed on AWS Amplify: [https://full-version.d14wnj5ihlfkwk.amplifyapp.com/](https://full-version.d14wnj5ihlfkwk.amplifyapp.com/)
 
-### `npm start`
+> The Amplify deployment hosts the React frontend only. PDF upload, RAG, and MCP search require the Express backend running locally (or deployed separately).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Features
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **PDF upload** — Drag and drop PDF files to use as the knowledge base for RAG.
+- **RAG answers** — LangChain loads and splits the PDF, retrieves relevant chunks with OpenAI embeddings, and generates concise answers with GPT.
+- **MCP web search** — An MCP server exposes a `search_web` tool (SerpAPI + Google). The backend summarizes live search results with GPT.
+- **Dual answers** — Each question returns both a document-based RAG answer and a web-search MCP answer side by side.
+- **Voice chat** — Toggle Chat Mode for speech recognition input and spoken RAG responses (text-to-speech).
 
-### `npm test`
+## Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, Ant Design, Axios, react-speech-recognition, speak-tts |
+| Backend | Express, Multer, LangChain, OpenAI, MCP SDK, SerpAPI |
 
-### `npm run build`
+## Project Structure
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+agentai/
+├── src/
+│   ├── App.js                 # Main layout
+│   └── components/
+│       ├── PdfUploader.js     # PDF drag-and-drop upload
+│       ├── ChatComponent.js   # Search input, voice chat, API calls
+│       └── RenderQA.js        # RAG + MCP answer display
+├── server/
+│   ├── server.js              # Express API (port 5001)
+│   ├── chat.js                # RAG pipeline (PDF → vector store → GPT)
+│   ├── chat-mcp.js            # MCP client + web search summarization
+│   └── mcp-service.js         # MCP server (SerpAPI search_web tool)
+└── build/                     # Production frontend build
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## API
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/uploads` | Upload a PDF file (multipart form field: `file`) |
+| `GET` | `/chat?question=...` | Returns `{ ragAnswer, mcpAnswer }` |
 
-### `npm run eject`
+## Getting Started
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Prerequisites
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- Node.js 18+
+- [OpenAI API key](https://platform.openai.com/)
+- [SerpAPI key](https://serpapi.com/)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Environment Variables
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Create `server/.env`:
 
-## Learn More
+```env
+OPENAI_API_KEY=your_openai_api_key
+SERPAPI_API_KEY=your_serpapi_api_key
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Install
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# Frontend dependencies
+npm install
 
-### Code Splitting
+# Backend dependencies
+cd server && npm install && cd ..
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Run Locally
 
-### Analyzing the Bundle Size
+Start both frontend and backend:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```bash
+npm run dev
+```
 
-### Making a Progressive Web App
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend: [http://localhost:5001](http://localhost:5001)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Or run them separately:
 
-### Advanced Configuration
+```bash
+npm start          # React dev server
+npm run server     # Express API
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Build for Production
 
-### Deployment
+```bash
+npm run build
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Output is written to the `build/` folder. Zip the contents for manual deploy to AWS Amplify:
 
-### `npm run build` fails to minify
+```bash
+cd build && zip -r ../build.zip .
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## How It Works
+
+1. Upload a PDF — the backend stores it and uses it as the RAG source on the next chat request.
+2. Ask a question — the backend runs two pipelines in parallel:
+   - **RAG**: PDF → text chunks → vector retrieval → GPT answer from document context.
+   - **MCP**: MCP client calls `search_web` on the SerpAPI MCP server → GPT summarizes search results.
+3. The UI shows both answers. In Chat Mode, the RAG answer is also read aloud.
